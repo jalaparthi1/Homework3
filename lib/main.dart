@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 
 void main() {
   runApp(CardMatchingGame());
@@ -27,6 +28,9 @@ class _CardMatchingGameState extends State<CardMatchingGame> {
   int _secondSelectedIndex = -1;
   bool _isChecking = false;
   int score = 0;
+  Timer? _timer;
+  int _elapsedTime = 0;
+  late DateTime _firstCardTime;
 
   @override
   void initState() {
@@ -58,6 +62,24 @@ class _CardMatchingGameState extends State<CardMatchingGame> {
     _firstSelectedIndex = -1;
     _secondSelectedIndex = -1;
     _isChecking = false;
+    _elapsedTime = 0;
+
+    // Start Timer
+    _startTimer();
+  }
+
+  void _startTimer() {
+    _timer?.cancel(); // Cancel any existing timer
+    _elapsedTime = 0;
+    _timer = Timer.periodic(Duration(seconds: 1), (timer) {
+      setState(() {
+        _elapsedTime++;
+      });
+    });
+  }
+
+  void _stopTimer() {
+    _timer?.cancel();
   }
 
   void _checkForMatch() async {
@@ -66,25 +88,39 @@ class _CardMatchingGameState extends State<CardMatchingGame> {
         _isChecking = true;
       });
 
-      if (cards[_firstSelectedIndex].imageAssetPath ==
-          cards[_secondSelectedIndex].imageAssetPath) {
+      bool isMatch = cards[_firstSelectedIndex].imageAssetPath ==
+          cards[_secondSelectedIndex].imageAssetPath;
+
+      if (isMatch) {
         setState(() {
           cards[_firstSelectedIndex].isMatched = true;
           cards[_secondSelectedIndex].isMatched = true;
+          int timeTaken = DateTime.now().difference(_firstCardTime).inSeconds;
+
           score += 10;
+          if (timeTaken <= 2) {
+            score += 5; // Bonus points for quick match
+          }
         });
       } else {
         await Future.delayed(Duration(seconds: 1));
         setState(() {
           cards[_firstSelectedIndex].isFaceUp = false;
           cards[_secondSelectedIndex].isFaceUp = false;
+          score -= 5; // Deduct points for mismatch
         });
       }
+
       setState(() {
         _firstSelectedIndex = -1;
         _secondSelectedIndex = -1;
         _isChecking = false;
       });
+
+      // Stop timer if all pairs are matched
+      if (_checkForWin()) {
+        _stopTimer();
+      }
     }
   }
 
@@ -96,6 +132,7 @@ class _CardMatchingGameState extends State<CardMatchingGame> {
       cards[index].isFaceUp = true;
       if (_firstSelectedIndex == -1) {
         _firstSelectedIndex = index;
+        _firstCardTime = DateTime.now(); // Record first card selection time
       } else {
         _secondSelectedIndex = index;
         _checkForMatch();
@@ -191,6 +228,11 @@ class _CardMatchingGameState extends State<CardMatchingGame> {
               SizedBox(height: 20),
               Text(
                 'Score: $score',
+                style: TextStyle(fontSize: 24, color: Colors.white),
+              ),
+              SizedBox(height: 10),
+              Text(
+                'Time: $_elapsedTime sec',
                 style: TextStyle(fontSize: 24, color: Colors.white),
               ),
               SizedBox(height: 20),
